@@ -27,7 +27,6 @@ public class LoginInterceptor implements HandlerInterceptor {
         this.stringRedisTemplate = stringRedisTemplate;
     }
 
-
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 
@@ -67,5 +66,6 @@ public class LoginInterceptor implements HandlerInterceptor {
 
         //移除用户
         UserHolder.removeUser();
+        
     }
 }
