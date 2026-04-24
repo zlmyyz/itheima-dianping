@@ -39,7 +39,7 @@ public class LoginInterceptor implements HandlerInterceptor {
 
         //2.基于token获取redis中的用户
         Map<Object, Object> userMap=stringRedisTemplate.opsForHash()
-                .entries(RedisConstants.LOGIN_CODE_KEY+token);
+                .entries(RedisConstants.LOGIN_USER_KEY+token);
 
         //3.判断用户是否存在
 
