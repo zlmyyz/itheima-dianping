@@ -45,6 +45,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         Shop shop = quertWithMutex(id);
         if(shop == null){
             return Result.fail("店铺不存在");
+
         }
 
         // 7.返回
