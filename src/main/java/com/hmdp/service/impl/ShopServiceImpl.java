@@ -79,9 +79,19 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
                 return quertWithMutex(id);
             }
             // 4.4.成功，先看缓存中是否有
-            //4.5.有返回结果
+            String shop1= stringRedisTemplate.opsForValue().get(key);
+
+
+            if (StrUtil.isNotBlank(shopJson)) {
+               //4.5.有返回结果，并释放锁
+                return JSONUtil.toBean(shopJson, Shop.class);
+            }
+            if(shopJson!=null){
+                return null;
+            }
             // 4.6.没有根据id查询数据库
             shop = getById(id);
+            Thread.sleep(200);
 
             // 5.不存在，保存空值防止缓存穿透，返回错误
             if (shop == null) {
