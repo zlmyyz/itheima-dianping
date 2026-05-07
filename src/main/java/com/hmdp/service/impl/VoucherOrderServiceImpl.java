@@ -7,15 +7,20 @@ import com.hmdp.mapper.VoucherOrderMapper;
 import com.hmdp.service.ISeckillVoucherService;
 import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.utils.Ilock;
 import com.hmdp.utils.RedisIdWorker;
+import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.concurrent.locks.Lock;
 
 /**
  * <p>
@@ -32,6 +37,10 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     private ISeckillVoucherService seckillVoucherService;
     @Autowired
     private RedisIdWorker redisIdWorker;
+
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
+
 
     @Override
     public Result seckillVoucher(Long voucherId) {
@@ -61,14 +70,35 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             //库存不足
             return Result.fail("库存不足");
         }
+//        Long userId = UserHolder.getUser().getId();
+//        synchronized (userId.toString().intern()) {
+//            //用特指锁缩小范围
+//            //为什么锁放在进函数的时候？如果放在函数里，会导致事务没提交的时候锁就被释放了，也就可能导致并发问题
+//            IVoucherOrderService proxy=(IVoucherOrderService) AopContext.currentProxy();
+//            return proxy.createVoucherOrder(voucherId,userId);
+//            //必须拿事务的代理对象，不然事务可能会失效（事务要想生效是因为spring拿到了代理对象
+//        }
+
+        //处理并发问题基于redis的分布锁
+        //创建锁对象
         Long userId = UserHolder.getUser().getId();
-        synchronized (userId.toString().intern()) {
-            //用特指锁缩小范围
-            //为什么锁放在进函数的时候？如果放在函数里，会导致事务没提交的时候锁就被释放了，也就可能导致并发问题
+        Ilock lock = new SimpleRedisLock(stringRedisTemplate,"order:"+userId);
+        //获取锁
+        boolean isLock = lock.tryLock(1200L);
+        //判断获取锁是否成功
+        if (!isLock) {
+            //获取失败
+            return Result.fail("不允许重复下单");
+        }
+        try {
             IVoucherOrderService proxy=(IVoucherOrderService) AopContext.currentProxy();
             return proxy.createVoucherOrder(voucherId,userId);
-            //必须拿事务的代理对象，不然事务可能会失效（事务要想生效是因为spring拿到了代理对象
+        } catch (IllegalStateException e) {
+            throw new RuntimeException(e);
+        } finally {
+            lock.unlock();
         }
+
     }
 
     @Transactional
