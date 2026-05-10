@@ -11,6 +11,8 @@ import com.hmdp.utils.Ilock;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -40,6 +42,9 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+
+    @Resource
+    private RedissonClient redissonClient;
 
 
     @Override
@@ -82,9 +87,10 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         //处理并发问题基于redis的分布锁
         //创建锁对象
         Long userId = UserHolder.getUser().getId();
-        Ilock lock = new SimpleRedisLock(stringRedisTemplate,"order:"+userId);
+//        Ilock lock = new SimpleRedisLock(stringRedisTemplate,"order:"+userId);
+        RLock lock = redissonClient.getLock("order:" + userId);
         //获取锁
-        boolean isLock = lock.tryLock(1200L);
+        boolean isLock = lock.tryLock();
         //判断获取锁是否成功
         if (!isLock) {
             //获取失败
