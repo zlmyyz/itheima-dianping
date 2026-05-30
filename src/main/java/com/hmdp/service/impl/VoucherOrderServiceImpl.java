@@ -66,6 +66,20 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
     @PostConstruct  //注解代表的含义：在当前类初始化完后执行
     private void init(){
+        // 1. 定义队列名和组名
+        String queueName = "stream.orders";
+        String groupName = "g1";
+
+        try {
+            // 2. 检查消费者组是否存在
+            stringRedisTemplate.opsForStream().groups(queueName);
+        } catch (Exception e) {
+            // 3. 如果报错说明队列不存在或组不存在，直接用代码初始化创建它
+            // 相当于手动执行了 XGROUP CREATE stream.orders g1 0 MKSTREAM
+            stringRedisTemplate.opsForStream().createGroup(queueName, ReadOffset.from("0"), groupName);
+        }
+
+        // 4. 确保队列和组都在了，再启动后台消费线程
         SECKILL_ORDER_EXECUTOR.submit(new VoucherOrderHandler());
     }
 
