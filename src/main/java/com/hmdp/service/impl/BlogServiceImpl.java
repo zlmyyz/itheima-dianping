@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.hmdp.utils.RedisConstants.BLOG_LIKED_KEY;
+import static com.hmdp.utils.RedisConstants.FOLLOW_USER_KEY;
 
 /**
  * <p>
@@ -136,6 +137,29 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         }
         return Result.ok(Collections.emptyList());
 
+    }
+
+    @Override
+    public Result followCommons(Long id) {
+        //获取当前用户
+        Long userId = UserHolder.getUser().getId();
+        String key = FOLLOW_USER_KEY+userId;
+        //获取目标用户
+        String key2 = FOLLOW_USER_KEY+id;
+        //求交集
+        Set<String> intersect = stringRedisTemplate.opsForSet().intersect(key2, key);
+        if(intersect !=null && !intersect.isEmpty()){
+            return Result.ok(Collections.emptyList());
+        }
+        //解析id集合
+        List<Long> ids = intersect.stream().map(Long::valueOf).collect(Collectors.toList());
+        //查询用户
+        List<UserDTO> users = userService.listByIds(ids)
+                .stream()
+                .map(user -> BeanUtil.copyProperties(user, UserDTO.class))
+                .collect(Collectors.toList());
+        // 返回结果给前端
+        return Result.ok(users);
     }
 
     private void queryBlogUser(Blog blog) {
